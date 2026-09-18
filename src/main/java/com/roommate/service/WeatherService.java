@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class WeatherService {
 
     private static final Map<Integer, String> WEATHER_CODE_DESCRIPTIONS = createWeatherCodeMap();
+    private static final Pattern CITY_PATTERN = Pattern.compile("^[\\p{L} .'-]{1,100}$");
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -77,24 +79,25 @@ public class WeatherService {
         }
 
         String trimmed = city.trim();
-        if (trimmed.length() > 100) {
-            throw new WeatherException("City name is too long.", HttpStatus.BAD_REQUEST);
+        if (!CITY_PATTERN.matcher(trimmed).matches()) {
+            throw new WeatherException("City name contains unsupported characters.", HttpStatus.BAD_REQUEST);
         }
 
         return trimmed;
     }
 
     private JsonNode fetchGeocodingResult(String city) {
-        String url = UriComponentsBuilder.fromHttpUrl(geocodingUrl)
+        var uri = UriComponentsBuilder.fromHttpUrl(geocodingUrl)
                 .queryParam("name", city)
                 .queryParam("count", 1)
                 .queryParam("language", "en")
                 .queryParam("format", "json")
                 .build()
-                .toUriString();
+                .encode()
+                .toUri();
 
         try {
-            String jsonResponse = restTemplate.getForObject(url, String.class);
+            String jsonResponse = restTemplate.getForObject(uri, String.class);
             JsonNode root = objectMapper.readTree(jsonResponse == null ? "{}" : jsonResponse);
             JsonNode results = root.path("results");
             if (!results.isArray() || results.isEmpty()) {
@@ -113,7 +116,7 @@ public class WeatherService {
     }
 
     private JsonNode fetchForecast(double latitude, double longitude) {
-        String url = UriComponentsBuilder.fromHttpUrl(forecastUrl)
+        var uri = UriComponentsBuilder.fromHttpUrl(forecastUrl)
                 .queryParam("latitude", latitude)
                 .queryParam("longitude", longitude)
                 .queryParam("current", "temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code")
@@ -121,10 +124,11 @@ public class WeatherService {
                 .queryParam("timezone", "auto")
                 .queryParam("forecast_days", forecastDays)
                 .build()
-                .toUriString();
+                .encode()
+                .toUri();
 
         try {
-            String jsonResponse = restTemplate.getForObject(url, String.class);
+            String jsonResponse = restTemplate.getForObject(uri, String.class);
             JsonNode root = objectMapper.readTree(jsonResponse == null ? "{}" : jsonResponse);
             if (!root.has("current") || !root.has("daily")) {
                 throw new WeatherException("Weather forecast data is incomplete.", HttpStatus.BAD_GATEWAY);

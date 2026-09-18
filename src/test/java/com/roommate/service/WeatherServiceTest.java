@@ -10,9 +10,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -60,8 +62,7 @@ class WeatherServiceTest {
                 }
                 """;
 
-        when(restTemplate.getForObject(contains("/v1/search"), eq(String.class))).thenReturn(geocodeJson);
-        when(restTemplate.getForObject(contains("/v1/forecast"), eq(String.class))).thenReturn(forecastJson);
+        when(restTemplate.getForObject(any(URI.class), eq(String.class))).thenReturn(geocodeJson, forecastJson);
 
         WeatherDashboardResponse response = service.getWeatherForCity("Ahmedabad");
 
@@ -98,12 +99,28 @@ class WeatherServiceTest {
                 5
         );
 
-        when(restTemplate.getForObject(contains("/v1/search"), eq(String.class)))
+        when(restTemplate.getForObject(any(URI.class), eq(String.class)))
                 .thenReturn("{\"results\":[]}");
 
         WeatherException exception = assertThrows(WeatherException.class, () -> service.getWeatherForCity("Nowhere"));
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+    }
+
+    @Test
+    void getWeatherForCityThrowsBadRequestForUnsupportedCharacters() {
+        WeatherService service = new WeatherService(
+                restTemplate,
+                objectMapper,
+                "https://geocoding-api.open-meteo.com/v1/search",
+                "https://api.open-meteo.com/v1/forecast",
+                5
+        );
+
+        WeatherException exception = assertThrows(WeatherException.class,
+                () -> service.getWeatherForCity("London<script>"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
     }
 
     @Test
@@ -116,7 +133,7 @@ class WeatherServiceTest {
                 5
         );
 
-        when(restTemplate.getForObject(contains("/v1/search"), eq(String.class)))
+        when(restTemplate.getForObject(any(URI.class), eq(String.class)))
                 .thenThrow(new RestClientException("API unavailable"));
 
         WeatherException exception = assertThrows(WeatherException.class, () -> service.getWeatherForCity("London"));
