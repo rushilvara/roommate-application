@@ -1,0 +1,33 @@
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roommate Application</title>
+    <link rel="stylesheet" href="/css/style.css"/>
+    <script defer src="/js/app.js"></script>
+</head>
+<body>
+<header>
+    <nav class="navbar">
+        <a href="/" class="brand">Roommate Finder</a>
+        <div class="nav-links">
+            <a href="/rooms">Rooms</a>
+            <c:choose>
+                <c:when test="${not empty sessionScope.USER_ID}">
+                    <a href="/dashboard">Dashboard</a>
+                    <a href="/preferences">Preferences</a>
+                    <a href="/matches">Matches</a>
+                    <a href="/profile">Profile</a>
+                    <a href="/logout">Logout</a>
+                </c:when>
+                <c:otherwise>
+                    <a href="/login">Login</a>
+                    <a href="/register">Register</a>
+                </c:otherwise>
+            </c:choose>
+        </div>
+    </nav>
+</header>
+<main class="container">
